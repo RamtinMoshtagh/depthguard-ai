@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Depthguard
 
-## Getting Started
+Depthguard is a lightweight security and safety scanner for modern AI systems and APIs.  
+It helps developers and teams quickly test **web chat UIs**, **chat-like HTTP JSON endpoints**, and **general REST APIs** for vulnerabilities, misconfigurations, and unsafe behaviors.
 
-First, run the development server:
+<img width="1125" height="1003" alt="Screenshot 2025-08-22 at 13 15 15" src="https://github.com/user-attachments/assets/d0371e0c-9e2d-441b-97c2-6fb898cb4c48" />
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## What it does
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Web Chat Scanning (Playwright)**  
+  Opens public chat UIs, auto-accepts cookie/consent banners, sends adversarial prompts, and scrapes assistant replies for unsafe outputs.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **HTTP JSON Chat Endpoints**  
+  Sends `POST { input }` payloads and reads `output.text` / `text` fields. Runs jailbreak & safety detectors to catch risky responses.
 
-## Learn More
+- **REST API Checks**  
+  Probes endpoints for:
+  - CORS misconfigurations
+  - Verbose error messages (stack traces, SQL leaks)
+  - Missing security headers
+  - Sensitive caching
+  - Rate-limit headers
+  - Unauthenticated access
 
-To learn more about Next.js, take a look at the following resources:
+- **Findings & Scoring**  
+  Results are stored in Supabase. Each scan produces:
+  - Findings with severity, excerpt, and recommendations  
+  - An overall score (or marked *inconclusive* if no useful response text was captured)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Built-in attack packs
 
-## Deploy on Vercel
+- **baseline-v1 (AI/Chat)**  
+  Prompt leakage, risky HTML/JS sinks, unsafe action hints, and related adversarial prompts.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **rest-v1 (APIs)**  
+  CORS permissiveness, stack traces/SQL errors, missing headers, caching issues, rate-limit headers, unauthenticated probes.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
