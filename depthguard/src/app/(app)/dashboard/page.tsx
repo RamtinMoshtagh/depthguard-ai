@@ -1,5 +1,8 @@
 'use client';
 
+import ScoreBadge from '@/components/ScoreBadge';
+import ModePackBadge from '@/components/ModePackBadge';
+
 import { SetStateAction, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -46,10 +49,15 @@ type Scan = {
   overall_score: number | null;
   started_at: string;
   finished_at: string | null;
+  summary_json: any;
 };
 type Target = { id: string; name: string; endpoint_url: string };
 
+
+export const dynamic = 'force-dynamic';
+
 export default function Dashboard() {
+  
   const { toast } = useToast();
 
   const [scans, setScans] = useState<Scan[]>([]);
@@ -65,6 +73,25 @@ export default function Dashboard() {
   // action loading states
   const [creating, setCreating] = useState(false);
   const [scanningId, setScanningId] = useState<string | null>(null);
+
+  const [mode, setMode] = useState<'http-json' | 'web' | 'rest'>('http-json');
+const [webConfig, setWebConfig] = useState<string>(
+  JSON.stringify(
+    {
+      mode: 'web',
+      waitForSelector: 'textarea, input[type="text"], [contenteditable="true"]',
+      selectors: {
+        input: 'textarea, input[type="text"], [contenteditable="true"]',
+        sendButton: 'button[type="submit"], button:has-text("Send")',
+        responseContainer:
+          '.assistant, .bot, .message.assistant, [data-role*="assistant"]',
+      },
+      timeoutMs: 30000,
+    },
+    null,
+    2
+  )
+);
 
   async function refresh() {
     try {
@@ -142,6 +169,10 @@ export default function Dashboard() {
     }
   };
 
+  function cn(arg0: string, arg1: string): string | undefined {
+    throw new Error('Function not implemented.');
+  }
+
   return (
     <main className="max-w-6xl mx-auto px-6 py-8">
       {/* Header */}
@@ -192,75 +223,217 @@ export default function Dashboard() {
       <Separator className="my-8" />
 
       {/* Add Target */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.18, delay: 0.03 }}
-      >
-        <Card className="bg-slate-900/60 backdrop-blur border border-slate-800/60 rounded-2xl">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Plus className="h-5 w-5" />
-              Add Target
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="t-name">Target name</Label>
-                <Input
-                  id="t-name"
-                  placeholder="Customer Chatbot"
-                  value={name}
-                  onChange={(e: { target: { value: SetStateAction<string>; }; }) => setName(e.target.value)}
-                />
-                <p className="text-xs text-slate-400">A short name for this endpoint.</p>
-              </div>
+{/* --- Add Target (fixed variants + no cn) --- */}
+<motion.div
+  initial={{ opacity: 0, y: 6 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.18, delay: 0.03 }}
+>
+  <Card className="bg-slate-900/60 backdrop-blur border border-slate-800/60 rounded-2xl">
+    <CardHeader className="pb-3">
+      <CardTitle className="flex items-center gap-2">
+        <Plus className="h-5 w-5" />
+        Add Target
+      </CardTitle>
+    </CardHeader>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="t-endpoint">Endpoint URL</Label>
-                <div className="relative">
-                  <Input
-                    id="t-endpoint"
-                    placeholder="https://api.example.com/ai"
-                    value={endpoint}
-                    onChange={(e: { target: { value: SetStateAction<string>; }; }) => setEndpoint(e.target.value)}
-                    className="pl-9"
-                  />
-                  <LinkIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-                </div>
-                <p className="text-xs text-slate-400">
-                  Must accept <code className="text-slate-300">{'{ input }'}</code> in a JSON POST.
-                </p>
-              </div>
+    <CardContent className="pt-0">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Mode selector */}
+        <div className="space-y-2">
+          <Label htmlFor="t-mode">Mode</Label>
+          <div className="inline-flex items-center gap-1 p-1 rounded-full bg-slate-800/60 border border-slate-700/60">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMode('http-json')}
+              className={
+                'rounded-full px-4 py-1.5 text-sm transition ' +
+                (mode === 'http-json'
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'text-slate-300 hover:text-white')
+              }
+            >
+              HTTP JSON
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setMode('web')}
+              className={
+                'rounded-full px-4 py-1.5 text-sm transition ' +
+                (mode === 'web'
+                  ? 'bg-slate-200 text-slate-900'
+                  : 'text-slate-300 hover:text-white')
+              }
+            >
+              Web (Playwright)
+            </Button>
+          </div>
+          <p className="text-xs text-slate-400">
+            <span className="font-medium">HTTP JSON</span> targets your API
+            endpoint; <span className="font-medium">Web</span> drives a public
+            chatbot UI with a headless browser.
+          </p>
+        </div>
 
-              <div className="space-y-2 lg:col-span-3">
-                <Label htmlFor="t-apikey">API Key (stored encrypted)</Label>
-                <CopyField
-                  value={apiKey}
-                  masked={!showKey}
-                  onChange={(v) => setApiKey(v)}
-                  onToggleMask={() => setShowKey((s) => !s)}
-                />
-                <p className="text-xs text-slate-400">
-                  We AES-GCM encrypt keys at rest and decrypt only during scans.
-                </p>
-              </div>
-            </div>
+        <div className="space-y-2">
+          <Label htmlFor="t-name">Target name</Label>
+          <Input
+            id="t-name"
+            placeholder="Customer Chatbot"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <p className="text-xs text-slate-400">A short label for this target.</p>
+        </div>
 
-            <div className="mt-5">
-              <Button
-                onClick={createTarget}
-                disabled={creating}
-                className="rounded-full px-5 gap-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-semibold shadow hover:opacity-90"
-              >
-                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Save Target
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+        <div className="space-y-2 md:col-span-2 lg:col-span-3">
+          <Label htmlFor="t-endpoint">
+            {mode === 'web' ? 'Chat URL' : 'Endpoint URL'}
+          </Label>
+          <div className="relative">
+            <Input
+              id="t-endpoint"
+              placeholder={
+                mode === 'web'
+                  ? 'https://example.com/your-chat'
+                  : 'https://api.example.com/ai'
+              }
+              value={endpoint}
+              onChange={(e) => setEndpoint(e.target.value)}
+              className="pl-9"
+            />
+            <LinkIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          </div>
+          <p className="text-xs text-slate-400">
+            {mode === 'web' ? (
+              <>DepthGuard will navigate and send a prompt via the page UI.</>
+            ) : (
+              <>
+                Must accept <code className="text-slate-300">{'{ input }'}</code> in
+                a JSON POST.
+              </>
+            )}
+          </p>
+        </div>
+
+        {/* API Key (optional in web mode) */}
+        <div className="space-y-2 lg:col-span-3">
+          <Label htmlFor="t-apikey">
+            API Key {mode === 'web' && <span className="text-slate-400">(optional)</span>}
+          </Label>
+          <div className={mode === 'web' ? 'opacity-60 pointer-events-none select-none' : ''}>
+            <CopyField
+              value={apiKey}
+              masked={!showKey}
+              onChange={(v: string) => setApiKey(v)}
+              onToggleMask={() => setShowKey((s: boolean) => !s)}
+            />
+          </div>
+          <p className="text-xs text-slate-400">
+            We AES-GCM encrypt keys at rest and decrypt only during scans.
+          </p>
+        </div>
+
+        {/* Web runner config (JSON) */}
+        {mode === 'web' && (
+          <div className="space-y-2 lg:col-span-3">
+            <Label htmlFor="t-webcfg">Web runner config (JSON)</Label>
+            <textarea
+              id="t-webcfg"
+              className="min-h-[180px] w-full rounded-xl bg-slate-950 border border-slate-800 px-3 py-2 font-mono text-sm text-slate-200"
+              value={webConfig}
+              onChange={(e) => setWebConfig(e.target.value)}
+            />
+            <p className="text-xs text-slate-400">
+              Used by the headless browser to find input, send, and capture responses.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-5">
+        <Button
+          onClick={async () => {
+            try {
+              setCreating(true);
+              const capabilities =
+                mode === 'web'
+                  ? (() => {
+                      try {
+                        const parsed = JSON.parse(webConfig || '{}');
+                        return { ...parsed, mode: 'web' as const };
+                      } catch {
+                        return {
+                          mode: 'web' as const,
+                          waitForSelector:
+                            'textarea, input[type="text"], [contenteditable="true"]',
+                          selectors: {
+                            input:
+                              'textarea, input[type="text"], [contenteditable="true"]',
+                            sendButton:
+                              'button[type="submit"], button:has-text("Send")',
+                            responseContainer:
+                              '.assistant, .bot, .message.assistant, [data-role*="assistant"]',
+                          },
+                          timeoutMs: 30000,
+                        };
+                      }
+                    })()
+                  : { mode: 'http-json' as const };
+
+              const res = await fetch('/api/targets', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({
+                  name,
+                  endpoint_url: endpoint,
+                  api_key: mode === 'http-json' ? apiKey : '',
+                  capabilities,
+                }),
+              });
+
+              const j = await res.json().catch(() => ({}));
+              if (!res.ok) {
+                toast({
+                  variant: 'destructive',
+                  title: 'Failed to create target',
+                  description: j.error || 'Please check fields and try again.',
+                });
+                return;
+              }
+              toast({
+                title: 'Target created',
+                description: j?.target?.name || 'Saved successfully.',
+              });
+              setApiKey('');
+              await refresh();
+            } catch (e: any) {
+              toast({
+                variant: 'destructive',
+                title: 'Unexpected error',
+                description: e?.message || 'Something went wrong.',
+              });
+            } finally {
+              setCreating(false);
+            }
+          }}
+          disabled={creating}
+          className="rounded-full px-5 gap-2 bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-semibold shadow hover:opacity-90"
+        >
+          {creating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
+          Save Target
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+</motion.div>
+
 
       {/* Targets */}
       <motion.div

@@ -9,8 +9,7 @@ function getKey() {
   return raw;
 }
 
-// Encrypt helper already existed; keeping compatible format:
-// cipher: base64( ciphertext || authTag ), nonce: base64(iv)
+// Encrypt helper: returns { cipher: base64(ciphertext||tag), nonce: base64(iv) }
 export function encryptApiKey(plain: string) {
   const key = getKey();
   const iv = crypto.randomBytes(12);
@@ -21,15 +20,37 @@ export function encryptApiKey(plain: string) {
   return { cipher: packed, nonce: iv.toString('base64') };
 }
 
-export function decryptApiKey(cipherB64: string, nonceB64: string) {
-  const key = getKey();
-  const iv = Buffer.from(nonceB64, 'base64');
-  const packed = Buffer.from(cipherB64, 'base64');
+/**
+ * Decrypt helper. If cipher/nonce are blank (e.g., adapter endpoints that use
+ * server-side env keys), return empty string instead of throwing.
+ */
+export function decryptApiKey(cipherB64?: string, nonceB64?: string): string {
+  // Graceful no-op for adapter targets (we stored empty strings)
+  if (!cipherB64 || !nonceB64) return '';
+
+  let iv: Buffer;
+  let packed: Buffer;
+  try {
+    iv = Buffer.from(nonceB64, 'base64');
+    packed = Buffer.from(cipherB64, 'base64');
+  } catch {
+    return '';
+  }
+
+  // GCM requires 12-byte IV; packed must include at least 16-byte tag
+  if (iv.length !== 12 || packed.length < 17) return '';
+
   const tag = packed.subarray(packed.length - 16);
   const ciphertext = packed.subarray(0, packed.length - 16);
 
-  const dec = crypto.createDecipheriv('aes-256-gcm', key, iv);
-  dec.setAuthTag(tag);
-  const plain = Buffer.concat([dec.update(ciphertext), dec.final()]);
-  return plain.toString('utf8');
+  try {
+    const key = getKey();
+    const dec = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    dec.setAuthTag(tag);
+    const plain = Buffer.concat([dec.update(ciphertext), dec.final()]);
+    return plain.toString('utf8');
+  } catch {
+    // Corrupt/invalid -> treat as no key
+    return '';
+  }
 }
